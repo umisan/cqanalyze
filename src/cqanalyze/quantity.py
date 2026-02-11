@@ -51,3 +51,25 @@ def calc_fractional_edge_cover(query: Query) -> tuple[float, list[float]]:
     else:
         raise Exception('optimal solution is not found')
 
+def calc_generalized_fractional_vertex_packing(query: Query) -> tuple[float, list[float]]:
+    m = Model(sense=MAXIMIZE)
+    attributes = set()
+    for relation in query.relations:
+        attributes |= set(relation.attributes)
+    attribute_variables = [m.add_var(name=attribute, lb=-float("inf")) for attribute in attributes]
+    for relation in query.relations:
+        target = []
+        for attribute in relation.attributes:
+            target.append(m.var_by_name(attribute))
+        m += xsum(target) <= 1
+    m.objective = xsum(attribute_variables)
+    status = m.optimize(max_seconds=300)
+    if status == OptimizationStatus.OPTIMAL:
+        print('optimal solution {} found'.format(m.objective_value))
+        print('solution:')
+        for v in m.vars:
+            if abs(v.x) > 1e-6: # only printing non-zeros
+                print('{} : {}'.format(v.name, v.x))
+        return m.objective_value, [v.x for v in m.vars]
+    else:
+        raise Exception('optimal solution is not found')
